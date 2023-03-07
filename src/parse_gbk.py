@@ -84,16 +84,22 @@ def parse_gbk(genbank_file):
                 orf_dict['end'] = int(feature.location.end)
                 orf_dict['strand'] = feature.strand
                 # orf_dict['id'] = feature.id
-                orf_dict['orf_id'] = feature.qualifiers.get('locus_tag', 'NA')[0]
+                orf_dict['orf_id'] = feature.qualifiers.get('locus_tag', 'NA')
                 orf_dict['inference'] = feature.qualifiers.get('inference', 'NA')
                 orf_dict['codon_start'] = int(feature.qualifiers.get('codon_start', 'NA')[0])
                 orf_dict['transl_table'] = int(feature.qualifiers.get('transl_table', 'NA')[0])
-                orf_dict['product'] = feature.qualifiers.get('product', 'NA')[0]
-                orf_dict['translation'] = feature.qualifiers.get('translation', 'NA')[0]
+                orf_dict['product'] = feature.qualifiers.get('product', 'NA')
+                orf_dict['translation'] = feature.qualifiers.get('translation', 'NA')
                 orf_dict['db_xref'] = feature.qualifiers.get('db_xref', 'NA')
                 orf_dict['gene'] = feature.qualifiers.get('gene', 'NA')
                 orf_dict['ec_num'] = feature.qualifiers.get('EC_number', 'NA')
                 orf_dict['note'] = feature.qualifiers.get('note', 'NA')
+                # If any of the values in orf_dict are lists of length 1, 
+                # unlist:
+                for key, value in orf_dict.items():
+                    if isinstance(value, list):
+                        if len(value) == 1:
+                            orf_dict[key] = value[0]
                 orfs.append(orf_dict)
 
     return orfs
