@@ -3,8 +3,8 @@
 """
 parse_gbk.py
 
-Parse a GenBank file of genomic features into a TSV file containing only ORF
-annotations for downstream use in GenCoFlow.
+Parse a Prokka-outputted GenBank file of genomic features into a TSV file 
+containing only ORF annotations for downstream use in GenCoFlow.
 
 Dependencies: python=3.11.0, biopython=1.80, pandas=1.5.2
 Other package versions may work but are untested.
@@ -32,8 +32,8 @@ def parse_arguments():
 
     parser = argparse.ArgumentParser(
         description = """
-        Parse a GenBank file of genomic features into a TSV file containing only
-        ORF annotations for downstream use in GenCoFlow.       
+        Parse a Prokka-outputted GenBank file of genomic features into a TSV
+        file containing only ORF annotations for downstream use in GenCoFlow.       
         """)
 
     # Required arguments
