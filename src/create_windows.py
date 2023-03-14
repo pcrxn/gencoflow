@@ -3,7 +3,7 @@
 """
 create_windows.py
 
-Create gene windows using custom annotations and parsed Prokka output.
+Create gene windows using target annotations and parsed Prokka output.
 
 Dependencies: python=3.11.0, pandas=1.5.2, numpy=1.24.2
 Other package versions may work but are untested.
@@ -31,7 +31,7 @@ def parse_arguments():
 
     parser = argparse.ArgumentParser(
         description = """
-        Create gene windows using custom annotations and parsed Prokka output.
+        Create gene windows using target annotations and parsed Prokka output.
         """)
 
     # Required arguments
@@ -40,9 +40,9 @@ def parse_arguments():
         help = """
         Path to a TSV file produced by parse_gbk.py.
         """)
-    required_args.add_argument('-c', '--custom', type = str, required = True,
+    required_args.add_argument('-t', '--targets', type = str, required = True,
         help = """
-        Path to a TSV file of custom annotations, such as those produced by
+        Path to a TSV file of target annotations, such as those produced by
         an ARG identifier. The first row must contain headers for columns, and
         the following headers must be present:"contig_id", "start", "end", 
         "strand".
@@ -51,18 +51,18 @@ def parse_arguments():
         help = """
         Path for a new TSV file of gene windows for downstream analysis.
         """)
+    required_args.add_argument('-n', '--target_name', type = str, 
+                               required = False,
+        help = """
+        Name of a column in -t/--targets to use for annotation.
+        """)    
     
     # Optional arguments
     optional_args = parser.add_argument_group('Optional')
-    optional_args.add_argument('-x', '--annot_field', type = str, 
-                               required = False,
-        help = """
-        Name of a column in -c/--custom to use for annotation.
-        """)    
     optional_args.add_argument('-w', '--window_size', type = int, 
                                required = False, default = 3000,
         help = """
-        Number of bp flanking the start and end positions of each custom
+        Number of bp flanking the start and end positions of each target
         annotation to include for analysis.
         Default: 3000
         """)   
@@ -79,36 +79,31 @@ def parse_arguments():
 # Other functions
 #-------------------------------------------------------------------------------
 
-def parse_custom_annot(custom_annot_file):
+def parse_target_annot(target_annot_file):
     """
     """
-    custom_df = pd.read_csv(custom_annot_file, sep = '\t', index_col = False)
-    custom_df['source'] = 'custom'
-    custom_df['strand'].replace('+', 1, inplace = True)
-    custom_df['strand'].replace('-', -1, inplace = True)
-    return custom_df
+    target_df = pd.read_csv(target_annot_file, sep = '\t', index_col = False)
+    target_df['source'] = 'target'
+    target_df['strand'].replace('+', 1, inplace = True)
+    target_df['strand'].replace('-', -1, inplace = True)
+
+    return target_df
 
 def parse_prokka(parsed_gbk_file):
     """
     """
     prokka_df = pd.read_csv(parsed_gbk_file, sep = '\t', index_col = False)
     prokka_df['source'] = 'prokka'
+
     return prokka_df
 
-def merge_dfs(custom_df, prokka_df, annot_field):
+def merge_dfs(target_df, prokka_df, target_name):
     """
     """
-    if annot_field is None:
-        df = pd.concat([
-            prokka_df[['contig_id', 'source', 'start', 'end', 'strand']],
-            custom_df[['contig_id', 'source', 'start', 'end', 'strand']]
-        ])
-    # If an annotation field was provided on the cmd line:
-    else:
-        df = pd.concat([
-            prokka_df[['contig_id', 'source', 'start', 'end', 'strand']],
-            custom_df[['contig_id', 'source', 'start', 'end', 'strand', annot_field]]
-        ])
+    df = pd.concat([
+        prokka_df[['contig_id', 'source', 'start', 'end', 'strand']],
+        target_df[['contig_id', 'source', 'start', 'end', 'strand', target_name]]
+    ])
 
     # Fix start and end positions if necessary
     # Start should always be less than end, regardless of strand
@@ -119,26 +114,87 @@ def merge_dfs(custom_df, prokka_df, annot_field):
 
     return df
 
-# def create_windows(df, window_size):
-#     """
-#     """
-    # There should be one window per custom annotation, with the size of the
-    # window determined by --window_size
+def obtain_windows_list(df, window_size):
+    """
+    """
+    windows_list = []
+
+    # Store each target and its terminal window coordinates as a dictionary
+    # within `windows_list`
+    for target in df[df['source'] == 'target'].to_dict(orient = 'records'):
+
+        window_handle = {}
+
+        # Target info
+        window_handle['window_contig_id'] = target['contig_id']
+        window_handle['window_target_strand'] = target['strand']
+        window_handle['window_target_source'] = target['source']
+
+        # window_start
+        if target['start'] - window_size > 0:
+            window_handle['window_start'] = target['start'] - window_size
+        else: 
+            window_handle['window_start'] = 0
+
+        # window_end
+        window_handle['window_end'] = target['end'] + window_size
+        windows_list.append(window_handle)
     
+    return windows_list
 
+def create_wdf(df, windows_list, target_name):
+    """
+    Use windows_list to separate `df` by target windows.
+    """
 
+    wdf = pd.DataFrame()
+    window_count = 0
+
+    for window in windows_list:
+
+        window_count += 1
+
+        # Filter `df` for ORFs within the current window scope
+        wdf_handle = df[(df['start'] >= window['window_start']) & 
+            (df['end'] <= window['window_end']) &
+            (df['contig_id'] == window['window_contig_id'])].copy()
+
+        # Add target info to the dataframe
+        wdf_handle['window_target_strand'] = window['window_target_strand']
+        wdf_handle['window_target_source'] = window['window_target_source']
+        wdf_handle['orig_window_start'] = window['window_start']
+        wdf_handle['orig_window_end'] = window['window_end']
+        wdf_handle['window_id'] = window_count
+
+        # Recode start and stop positions to use window-specific coordinates
+        wdf_handle = wdf_handle.rename(columns = {'start': 'orig_start', 'end': 'orig_end'})
+        wdf_handle['start'] = wdf_handle['orig_start'] - min(wdf_handle['orig_start'])
+        wdf_handle['end'] = min(wdf_handle['orig_end']) - min(wdf_handle['orig_start']) + wdf_handle['start']
+
+        wdf = pd.concat([wdf, wdf_handle], ignore_index = True)
+
+    # Reorder columns
+    wdf = wdf[['window_id', 'contig_id', 'source', 'start', 'end', 'strand',
+                target_name, 'orig_start', 'orig_end', 'orig_window_start',
+                'orig_window_end', 'window_target_strand',
+                'window_target_source']]
+
+    return wdf
 
 #-------------------------------------------------------------------------------
 # main()
 #-------------------------------------------------------------------------------
 
 def main(args):
-    custom_df = parse_custom_annot(custom_annot_file = args.custom)
+    target_df = parse_target_annot(target_annot_file = args.targets)
     prokka_df = parse_prokka(parsed_gbk_file = args.prokka)
-    df = merge_dfs(custom_df, prokka_df, annot_field = args.annot_field)
-    print(df)
-    # create_windows(df, window_size = args.window_size)
-    df.to_csv("combined_df.tsv", sep = "\t", index = False)
+    df = merge_dfs(target_df, prokka_df, target_name = args.target_name)
+    # print(df)
+    windows_list = obtain_windows_list(df, window_size = args.window_size)
+    # print(windows_list)
+    wdf = create_wdf(df, windows_list, target_name = args.target_name)
+    print(wdf)
+    # wdf.to_csv('window_df.tsv', sep = '\t')
 
 #-------------------------------------------------------------------------------
 
