@@ -54,7 +54,8 @@ def parse_arguments():
     required_args.add_argument('-n', '--target_name', type = str, 
                                required = False,
         help = """
-        Name of a column in -t/--targets to use for annotation.
+        Name of a column in -t/--targets to use for annotation. Avoid using
+        column names that are also present in -p/--prokka (e.g. 'gene').
         """)    
     
     # Optional arguments
@@ -79,8 +80,17 @@ def parse_arguments():
 # Other functions
 #-------------------------------------------------------------------------------
 
-def parse_target_annot(target_annot_file):
+def read_target_annot(target_annot_file):
     """
+    Read a TSV file of target annotations and fix strand encoding if necessary,
+    then store as a dataframe.
+
+    :param target_annot_file: Path to a TSV file of target annotations, such as
+    those produced by an ARG identifier.
+    :type target_annot_file: str
+    :returns target_df: A dataframe containing target annotation information and
+    coordinates.
+    :rtype target_df: <class 'pandas.core.frame.DataFrame'>
     """
     target_df = pd.read_csv(target_annot_file, sep = '\t', index_col = False)
     target_df['source'] = 'target'
@@ -89,8 +99,15 @@ def parse_target_annot(target_annot_file):
 
     return target_df
 
-def parse_prokka(parsed_gbk_file):
+def read_prokka(parsed_gbk_file):
     """
+    Read a TSV file of parsed Prokka annotations and store as a dataframe.
+
+    :param parsed_gbk_file: Path to a TSV file produced by parse_gbk.py.
+    :type parsed_gbk_file: str
+    :returns prokka_df: A dataframe containing Prokka annotation information and
+    coordinates.
+    :rtype prokka_df: <class 'pandas.core.frame.DataFrame'>
     """
     prokka_df = pd.read_csv(parsed_gbk_file, sep = '\t', index_col = False)
     prokka_df['source'] = 'prokka'
@@ -99,10 +116,19 @@ def parse_prokka(parsed_gbk_file):
 
 def merge_dfs(target_df, prokka_df, target_name):
     """
+    Combine Prokka and target annotations into one dataframe, and fix the start
+    and end coordinates if necessary.
+
+    :param target_df: A dataframe containing target annotation information and
+    coordinates.
+    :param prokka_df:
+    :param target_name:
+
     """
     df = pd.concat([
-        prokka_df[['contig_id', 'source', 'start', 'end', 'strand']],
-        target_df[['contig_id', 'source', 'start', 'end', 'strand', target_name]]
+        prokka_df,
+        target_df[['contig_id', 'source', 'start', 'end', 'strand', 
+                   target_name]]
     ])
 
     # Fix start and end positions if necessary
@@ -175,7 +201,8 @@ def create_wdf(df, windows_list, target_name):
 
     # Reorder columns
     wdf = wdf[['window_id', 'contig_id', 'source', 'start', 'end', 'strand',
-                target_name, 'orig_start', 'orig_end', 'orig_window_start',
+                target_name, 'orf_id', 'inference', 'product', 'db_xref', 
+                'gene', 'note', 'orig_start', 'orig_end', 'orig_window_start',
                 'orig_window_end', 'window_target_strand']]
 
     return wdf
@@ -191,8 +218,8 @@ def save_wdf(wdf, output):
 #-------------------------------------------------------------------------------
 
 def main(args):
-    target_df = parse_target_annot(target_annot_file = args.targets)
-    prokka_df = parse_prokka(parsed_gbk_file = args.prokka)
+    target_df = read_target_annot(target_annot_file = args.targets)
+    prokka_df = read_prokka(parsed_gbk_file = args.prokka)
     df = merge_dfs(target_df, prokka_df, target_name = args.target_name)
     # print(df)
     windows_list = obtain_windows_list(df, window_size = args.window_size)
