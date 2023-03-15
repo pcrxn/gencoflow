@@ -128,7 +128,7 @@ def obtain_windows_list(df, window_size):
         # Target info
         window_handle['window_contig_id'] = target['contig_id']
         window_handle['window_target_strand'] = target['strand']
-        window_handle['window_target_source'] = target['source']
+        # window_handle['window_target_source'] = target['source']
 
         # window_start
         if target['start'] - window_size > 0:
@@ -161,7 +161,7 @@ def create_wdf(df, windows_list, target_name):
 
         # Add target info to the dataframe
         wdf_handle['window_target_strand'] = window['window_target_strand']
-        wdf_handle['window_target_source'] = window['window_target_source']
+        # wdf_handle['window_target_source'] = window['window_target_source']
         wdf_handle['orig_window_start'] = window['window_start']
         wdf_handle['orig_window_end'] = window['window_end']
         wdf_handle['window_id'] = window_count
@@ -176,10 +176,15 @@ def create_wdf(df, windows_list, target_name):
     # Reorder columns
     wdf = wdf[['window_id', 'contig_id', 'source', 'start', 'end', 'strand',
                 target_name, 'orig_start', 'orig_end', 'orig_window_start',
-                'orig_window_end', 'window_target_strand',
-                'window_target_source']]
+                'orig_window_end', 'window_target_strand']]
 
     return wdf
+
+def save_wdf(wdf, output):
+    """
+    Save dataframe of windows for downstream analysis.
+    """
+    wdf.to_csv(output, sep = '\t', index = False)
 
 #-------------------------------------------------------------------------------
 # main()
@@ -191,10 +196,9 @@ def main(args):
     df = merge_dfs(target_df, prokka_df, target_name = args.target_name)
     # print(df)
     windows_list = obtain_windows_list(df, window_size = args.window_size)
-    # print(windows_list)
     wdf = create_wdf(df, windows_list, target_name = args.target_name)
-    print(wdf)
-    # wdf.to_csv('window_df.tsv', sep = '\t')
+    # print(wdf)
+    save_wdf(wdf, output = args.output)
 
 #-------------------------------------------------------------------------------
 
