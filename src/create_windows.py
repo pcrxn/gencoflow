@@ -51,8 +51,7 @@ def parse_arguments():
         help = """
         Path for a new TSV file of gene windows for downstream analysis.
         """)
-    required_args.add_argument('-n', '--target_name', type = str, 
-                               required = False,
+    required_args.add_argument('-n', '--target_name', type = str, required = True,
         help = """
         Name of a column in -t/--targets to use for annotation. Avoid using
         column names that are also present in -p/--prokka (e.g. 'gene').
