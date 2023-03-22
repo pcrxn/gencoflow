@@ -28,7 +28,7 @@ Tip: found a bug in abricate? Post it at https://github.com/tseemann/abricate/is
 Done.
 ```
 
-4. Columns in card_SAMN02147037.tsv were renamed to the following: 'seq_id', 'contig_id', 'start', 'end', 'strand', 'gene', 'cov', 'cov_map', 'gaps', 'percent_cov', 'pident', 'database', 'accession', 'product', 'resistance'.
+4. Columns in card_SAMN02147037.tsv were renamed to the following: 'seq_id', 'contig_id', 'start', 'end', 'strand', 'arg', 'cov', 'cov_map', 'gaps', 'percent_cov', 'pident', 'database', 'accession', 'product', 'resistance'.
 
 ## References
 
