@@ -118,27 +118,27 @@ def determine_run_mode(sample_id_name):
     Determine whether GenCoFlow should be run in single-sample or multi-sample
     mode.
     """
-    sample_mode = None
+    run_mode = None
 
     if sample_id_name is None:
-        sample_mode = 'single'
+        run_mode = 'single'
     else:
-        sample_mode = 'multi'
+        run_mode = 'multi'
 
-    return sample_mode
+    return run_mode
 
-def read_target_annot(sample_mode, target_annot_file, sample_id_name, contig_id_name,
+def read_target_annot(run_mode, target_annot_file, sample_id_name, contig_id_name,
                       start_name, end_name):
     """
 
     """
     target_df = pd.read_csv(target_annot_file, sep = '\t', index_col = False)
 
-    if sample_mode == 'single':
+    if run_mode == 'single':
         target_df.rename(columns = {contig_id_name: 'contig_id',
                                     start_name: 'start',
                                     end_name: 'end'})
-    elif sample_mode == 'multi':
+    elif run_mode == 'multi':
         target_df.rename(columns = {contig_id_name: 'contig_id',
                                     start_name: 'start',
                                     end_name: 'end',
@@ -165,7 +165,7 @@ def read_prokka(parsed_gbk_file):
 
     return prokka_df
 
-def merge_dfs(target_df, prokka_df, sample_mode, target_name):
+def merge_dfs(target_df, prokka_df, run_mode, target_name):
     """
     Combine Prokka and target annotations into one dataframe, and fix the start
     and end coordinates if necessary.
@@ -177,13 +177,13 @@ def merge_dfs(target_df, prokka_df, sample_mode, target_name):
 
     """
 
-    if sample_mode == 'single':
+    if run_mode == 'single':
         df = pd.concat([
             prokka_df,
             target_df[['contig_id', 'source', 'start', 'end', 'strand', 
                     target_name]]
         ])
-    elif sample_mode == 'multi':
+    elif run_mode == 'multi':
         df = pd.concat([
         prokka_df,
         target_df[['sample_id', 'contig_id', 'source', 'start', 'end', 'strand', 
@@ -201,7 +201,7 @@ def merge_dfs(target_df, prokka_df, sample_mode, target_name):
 
     return df
 
-def obtain_windows_list(df, sample_mode, window_size):
+def obtain_windows_list(df, run_mode, window_size):
     """
     """
     windows_list = []
@@ -213,9 +213,9 @@ def obtain_windows_list(df, sample_mode, window_size):
         window_handle = {}
 
         # Target info
-        if sample_mode == 'multi':
+        if run_mode == 'multi':
             window_handle['window_sample_id'] = target['sample_id']
-        elif sample_mode == 'single':
+        elif run_mode == 'single':
             continue
         window_handle['window_contig_id'] = target['contig_id']
         window_handle['window_target_strand'] = target['strand']
@@ -232,7 +232,7 @@ def obtain_windows_list(df, sample_mode, window_size):
     
     return windows_list
 
-def create_wdf(df, windows_list, sample_mode, target_name):
+def create_wdf(df, windows_list, run_mode, target_name):
     """
     Use windows_list to separate `df` by target windows.
     """
@@ -245,11 +245,11 @@ def create_wdf(df, windows_list, sample_mode, target_name):
         window_count += 1
 
         # Filter `df` for ORFs within the current window scope
-        if sample_mode == 'single':
+        if run_mode == 'single':
             wdf_handle = df[(df['start'] >= window['window_start']) & 
                 (df['end'] <= window['window_end']) &
                 (df['contig_id'] == window['window_contig_id'])].copy()
-        elif sample_mode == 'multi':
+        elif run_mode == 'multi':
             wdf_handle = df[(df['start'] >= window['window_start']) & 
                 (df['end'] <= window['window_end']) &
                 (df['contig_id'] == window['window_contig_id']) &
@@ -272,12 +272,12 @@ def create_wdf(df, windows_list, sample_mode, target_name):
         wdf = pd.concat([wdf, wdf_handle], ignore_index = True)
 
     # Reorder columns
-    if sample_mode == 'single':
+    if run_mode == 'single':
         wdf = wdf[['window_id', 'contig_id', 'source', 'start', 'end', 'strand',
                     target_name, 'orf_id', 'inference', 'product', 'db_xref', 
                     'gene', 'note', 'orig_start', 'orig_end', 'orig_window_start',
                     'orig_window_end', 'window_target_strand']]
-    if sample_mode == 'multi':
+    if run_mode == 'multi':
         wdf = wdf[['window_id', 'sample_id', 'contig_id', 'source', 'start',
                     'end', 'strand', target_name, 'orf_id', 'inference',
                      'product', 'db_xref', 'gene', 'note', 'orig_start',
@@ -297,20 +297,20 @@ def save_wdf(wdf, output):
 #-------------------------------------------------------------------------------
 
 def main(args):
-    sample_mode = determine_run_mode(sample_id_name = args.sample_id)
-    target_df = read_target_annot(sample_mode,
+    run_mode = determine_run_mode(sample_id_name = args.sample_id)
+    target_df = read_target_annot(run_mode,
                                   target_annot_file = args.targets,
                                   sample_id_name = args.sample_id,
                                   contig_id_name = args.contig_id,
                                   start_name = args.start,
                                   end_name = args.end)
     prokka_df = read_prokka(parsed_gbk_file = args.prokka)
-    df = merge_dfs(target_df, prokka_df, sample_mode, 
+    df = merge_dfs(target_df, prokka_df, run_mode, 
                    target_name = args.target_name)
     # print(df)
-    windows_list = obtain_windows_list(df, sample_mode,
+    windows_list = obtain_windows_list(df, run_mode,
                                        window_size = args.window_size)
-    wdf = create_wdf(df, windows_list, sample_mode,
+    wdf = create_wdf(df, windows_list, run_mode,
                      target_name = args.target_name)
     # print(wdf)
     save_wdf(wdf, output = args.output)
