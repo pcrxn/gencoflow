@@ -141,7 +141,6 @@ def parse_gbk(genbank_files):
                                 orf_dict[key] = value[0]
                     orfs.append(orf_dict)
 
-    print(orfs[-1])
     return orfs
 
 def orfs_to_df(orfs):
