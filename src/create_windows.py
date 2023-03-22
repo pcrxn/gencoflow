@@ -54,8 +54,9 @@ def parse_arguments():
     required_args.add_argument('-n', '--target_name', type = str, 
                                required = True,
         help = """
-        Name of a column in -t/--targets to use for annotation. Avoid using
-        column names that are also present in -p/--prokka (e.g. 'gene').
+        Name of a column in file provided to -t/--targets to use for annotation
+        of the targets. Avoid using column names that are also present in file
+        provided to -p/--prokka (e.g. 'gene').
         """)    
     
     # Optional arguments
@@ -66,7 +67,39 @@ def parse_arguments():
         Number of bp flanking the start and end positions of each target
         annotation to include for analysis.
         Default: 3000
-        """)   
+        """)
+    optional_args.add_argument('-s', '--sample_id', type = str, 
+                            required = False,
+    help = """
+    Column name in file provided to -t/--targets which contains sample 
+    identifiers. If none provided, GenCoFlow will run in single-sample mode and
+    generate a single plot of the gene windows. If a column name is provided,
+    GenCoFlow will run in multi-sample mode and generate a plot of gene windows
+    for each unique sample identifier.
+    """)
+    optional_args.add_argument('-c', '--contig_id', type = str, 
+                        required = False, default = 'contig_id',
+    help = """
+    Column name in file provided to -t/--targets which contains unique contig
+    identifiers for each sample. Each unique contig identifier corresponds to a
+    different gene track in the generated plot(s).
+    Default: 'contig_id'
+    """)
+    optional_args.add_argument('-1', '--start', type = str, 
+                        required = False, default = 'start',
+    help = """
+    Column name in -t/--targets which contains the start position of each
+    target.
+    Default: 'start'
+    """)
+    optional_args.add_argument('-2', '--end', type = str, 
+                        required = False, default = 'end',
+    help = """
+    Column name in -t/--targets which contains the end position of each
+    target.
+    Default: 'end'
+    """)
+
 
     # If no arguments provided:
     if len(sys.argv) == 1:
@@ -80,19 +113,37 @@ def parse_arguments():
 # Other functions
 #-------------------------------------------------------------------------------
 
-def read_target_annot(target_annot_file):
+def determine_run_mode(sample_id_name):
     """
-    Read a TSV file of target annotations and fix strand encoding if necessary,
-    then store as a dataframe.
+    Determine whether GenCoFlow should be run in single-sample or multi-sample
+    mode.
+    """
+    sample_mode = None
 
-    :param target_annot_file: Path to a TSV file of target annotations, such as
-    those produced by an ARG identifier.
-    :type target_annot_file: str
-    :returns target_df: A dataframe containing target annotation information and
-    coordinates.
-    :rtype target_df: <class 'pandas.core.frame.DataFrame'>
+    if sample_id_name is None:
+        sample_mode = 'single'
+    else:
+        sample_mode = 'multi'
+
+    return sample_mode
+
+def read_target_annot(sample_mode, target_annot_file, sample_id_name, contig_id_name,
+                      start_name, end_name):
+    """
+
     """
     target_df = pd.read_csv(target_annot_file, sep = '\t', index_col = False)
+
+    if sample_mode == 'single':
+        target_df.rename(columns = {contig_id_name: 'contig_id',
+                                    start_name: 'start',
+                                    end_name: 'end'})
+    elif sample_mode == 'multi':
+        target_df.rename(columns = {contig_id_name: 'contig_id',
+                                    start_name: 'start',
+                                    end_name: 'end',
+                                    sample_id_name: 'sample_id'})
+
     target_df['source'] = 'target'
     target_df['strand'].replace('+', 1, inplace = True)
     target_df['strand'].replace('-', -1, inplace = True)
@@ -114,7 +165,7 @@ def read_prokka(parsed_gbk_file):
 
     return prokka_df
 
-def merge_dfs(target_df, prokka_df, target_name):
+def merge_dfs(target_df, prokka_df, sample_mode, target_name):
     """
     Combine Prokka and target annotations into one dataframe, and fix the start
     and end coordinates if necessary.
@@ -125,10 +176,18 @@ def merge_dfs(target_df, prokka_df, target_name):
     :param target_name:
 
     """
-    df = pd.concat([
+
+    if sample_mode == 'single':
+        df = pd.concat([
+            prokka_df,
+            target_df[['contig_id', 'source', 'start', 'end', 'strand', 
+                    target_name]]
+        ])
+    elif sample_mode == 'multi':
+        df = pd.concat([
         prokka_df,
-        target_df[['contig_id', 'source', 'start', 'end', 'strand', 
-                   target_name]]
+        target_df[['sample_id', 'contig_id', 'source', 'start', 'end', 'strand', 
+                target_name]]
     ])
 
     # Fix start and end positions if necessary
@@ -142,7 +201,7 @@ def merge_dfs(target_df, prokka_df, target_name):
 
     return df
 
-def obtain_windows_list(df, window_size):
+def obtain_windows_list(df, sample_mode, window_size):
     """
     """
     windows_list = []
@@ -154,9 +213,12 @@ def obtain_windows_list(df, window_size):
         window_handle = {}
 
         # Target info
+        if sample_mode == 'multi':
+            window_handle['window_sample_id'] = target['sample_id']
+        elif sample_mode == 'single':
+            continue
         window_handle['window_contig_id'] = target['contig_id']
         window_handle['window_target_strand'] = target['strand']
-        # window_handle['window_target_source'] = target['source']
 
         # window_start
         if target['start'] - window_size > 0:
@@ -170,7 +232,7 @@ def obtain_windows_list(df, window_size):
     
     return windows_list
 
-def create_wdf(df, windows_list, target_name):
+def create_wdf(df, windows_list, sample_mode, target_name):
     """
     Use windows_list to separate `df` by target windows.
     """
@@ -183,13 +245,18 @@ def create_wdf(df, windows_list, target_name):
         window_count += 1
 
         # Filter `df` for ORFs within the current window scope
-        wdf_handle = df[(df['start'] >= window['window_start']) & 
-            (df['end'] <= window['window_end']) &
-            (df['contig_id'] == window['window_contig_id'])].copy()
+        if sample_mode == 'single':
+            wdf_handle = df[(df['start'] >= window['window_start']) & 
+                (df['end'] <= window['window_end']) &
+                (df['contig_id'] == window['window_contig_id'])].copy()
+        elif sample_mode == 'multi':
+            wdf_handle = df[(df['start'] >= window['window_start']) & 
+                (df['end'] <= window['window_end']) &
+                (df['contig_id'] == window['window_contig_id']) &
+                (df['sample_id'] == window['window_sample_id'])].copy()
 
         # Add target info to the dataframe
         wdf_handle['window_target_strand'] = window['window_target_strand']
-        # wdf_handle['window_target_source'] = window['window_target_source']
         wdf_handle['orig_window_start'] = window['window_start']
         wdf_handle['orig_window_end'] = window['window_end']
         wdf_handle['window_id'] = window_count
@@ -205,10 +272,17 @@ def create_wdf(df, windows_list, target_name):
         wdf = pd.concat([wdf, wdf_handle], ignore_index = True)
 
     # Reorder columns
-    wdf = wdf[['window_id', 'contig_id', 'source', 'start', 'end', 'strand',
-                target_name, 'orf_id', 'inference', 'product', 'db_xref', 
-                'gene', 'note', 'orig_start', 'orig_end', 'orig_window_start',
-                'orig_window_end', 'window_target_strand']]
+    if sample_mode == 'single':
+        wdf = wdf[['window_id', 'contig_id', 'source', 'start', 'end', 'strand',
+                    target_name, 'orf_id', 'inference', 'product', 'db_xref', 
+                    'gene', 'note', 'orig_start', 'orig_end', 'orig_window_start',
+                    'orig_window_end', 'window_target_strand']]
+    if sample_mode == 'multi':
+        wdf = wdf[['window_id', 'sample_id', 'contig_id', 'source', 'start',
+                    'end', 'strand', target_name, 'orf_id', 'inference',
+                     'product', 'db_xref', 'gene', 'note', 'orig_start',
+                      'orig_end', 'orig_window_start', 'orig_window_end',
+                      'window_target_strand']]
 
     return wdf
 
@@ -223,12 +297,21 @@ def save_wdf(wdf, output):
 #-------------------------------------------------------------------------------
 
 def main(args):
-    target_df = read_target_annot(target_annot_file = args.targets)
+    sample_mode = determine_run_mode(sample_id_name = args.sample_id)
+    target_df = read_target_annot(sample_mode,
+                                  target_annot_file = args.targets,
+                                  sample_id_name = args.sample_id,
+                                  contig_id_name = args.contig_id,
+                                  start_name = args.start,
+                                  end_name = args.end)
     prokka_df = read_prokka(parsed_gbk_file = args.prokka)
-    df = merge_dfs(target_df, prokka_df, target_name = args.target_name)
+    df = merge_dfs(target_df, prokka_df, sample_mode, 
+                   target_name = args.target_name)
     # print(df)
-    windows_list = obtain_windows_list(df, window_size = args.window_size)
-    wdf = create_wdf(df, windows_list, target_name = args.target_name)
+    windows_list = obtain_windows_list(df, sample_mode,
+                                       window_size = args.window_size)
+    wdf = create_wdf(df, windows_list, sample_mode,
+                     target_name = args.target_name)
     # print(wdf)
     save_wdf(wdf, output = args.output)
 
