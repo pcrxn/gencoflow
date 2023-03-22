@@ -51,7 +51,8 @@ def parse_arguments():
         help = """
         Path for a new TSV file of gene windows for downstream analysis.
         """)
-    required_args.add_argument('-n', '--target_name', type = str, required = True,
+    required_args.add_argument('-n', '--target_name', type = str, 
+                               required = True,
         help = """
         Name of a column in -t/--targets to use for annotation. Avoid using
         column names that are also present in -p/--prokka (e.g. 'gene').
@@ -132,10 +133,12 @@ def merge_dfs(target_df, prokka_df, target_name):
 
     # Fix start and end positions if necessary
     # Start should always be less than end, regardless of strand
-    df['new_start'] = np.where((df['start'] < df['end']), df['start'], df['end'])
+    df['new_start'] = np.where((df['start'] < df['end']), df['start'], 
+                               df['end'])
     df['new_end'] = np.where((df['start'] < df['end']), df['end'], df['start'])
     df.drop(columns = ['start', 'end'], inplace = True)
-    df.rename(columns = {'new_start': 'start', 'new_end': 'end'}, inplace = True)
+    df.rename(columns = {'new_start': 'start', 'new_end': 'end'},
+              inplace = True)
 
     return df
 
@@ -192,9 +195,12 @@ def create_wdf(df, windows_list, target_name):
         wdf_handle['window_id'] = window_count
 
         # Recode start and stop positions to use window-specific coordinates
-        wdf_handle = wdf_handle.rename(columns = {'start': 'orig_start', 'end': 'orig_end'})
-        wdf_handle['start'] = wdf_handle['orig_start'] - min(wdf_handle['orig_start'])
-        wdf_handle['end'] = min(wdf_handle['orig_end']) - min(wdf_handle['orig_start']) + wdf_handle['start']
+        wdf_handle = wdf_handle.rename(columns = {'start': 'orig_start',
+                                                  'end': 'orig_end'})
+        wdf_handle['start'] = wdf_handle['orig_start'] - min(
+            wdf_handle['orig_start'])
+        wdf_handle['end'] = min(wdf_handle['orig_end']) - min(
+            wdf_handle['orig_start']) + wdf_handle['start']
 
         wdf = pd.concat([wdf, wdf_handle], ignore_index = True)
 
