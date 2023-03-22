@@ -1,34 +1,30 @@
 # Example
 
-1. The genomic assembly for a pathogenic Escherichia coli isolate (BioSample SAMN02147037) was retrieved from https://zenodo.org/record/5604579, and corresponds to the following assembly methods described in the paper by Raphenya et al. 2022:
+1. The genomic assemblies for several pathogenic isolates (Escherichia coli, BioSample SAMN02147037; Acinetobacter baumannii, BioSample SAMN10163228; Salmonella enterica, BioSample SAMN05263515) were retrieved from https://zenodo.org/record/5604579, and correspond to the following assembly methods described in the paper by Raphenya et al. 2022:
 
 - Filtered/GenBank/Raw: Filtered
 - Assembler: SKESA
 
-More metadata for this isolate is available at https://zenodo.org/record/6543963 under `data/strain.metadata.txt`. 
+More metadata for these isolates are available at https://zenodo.org/record/6543963 under `data/strain.metadata.txt`. 
 
-2. Prokka (v1.14.6) was used to identify and annotate ORFs within the assembly using the following commands:
+The assemblies were saved as .fastq.gz files within `examples/`.
 
-```bash
-$ cd gencoflow/examples/
-$ prokka --cpus 14 --outdir prokka_SAMN02147037 SAMN02147037.fasta
-```
+2. Prokka (v1.14.6) was used to identify and annotate ORFs within the assemblies using default parameters.
 
-All output files except for the GenBank file were removed.
+All output files except for the GenBank files were removed.
 
-3. ABRicate (v1.0.1) was used to identify antimicrobial resistance genes within the assembly using the following commands:
+3. ABRicate (v1.0.1) was used to identify antimicrobial resistance genes within the assemblies using the pre-loaded CARD database. For multiple samples simultaneously:
 
 ```bash
-$ cd gencoflow/examples/
-$ abricate --db card SAMN02147037.fasta > card_SAMN02147037.tsv
-Using nucl database card:  2631 sequences -  2022-Nov-25
-Processing: SAMN02147037.fasta
-Found 45 genes in SAMN02147037.fasta
-Tip: found a bug in abricate? Post it at https://github.com/tseemann/abricate/issues.
-Done.
+$ cd examples/
+$ abricate --db card *.fasta > multi-sample/card-results.tsv
 ```
 
-4. Columns in card_SAMN02147037.tsv were renamed to the following: 'seq_id', 'contig_id', 'start', 'end', 'strand', 'arg', 'cov', 'cov_map', 'gaps', 'percent_cov', 'pident', 'database', 'accession', 'product', 'resistance'.
+The '.fasta' at the end of each sample ID in the '#FILE' column of `card-results.tsv` was removed:
+
+```bash
+sed -i 's/.fasta//' multi-sample/card-results.tsv
+```
 
 ## References
 
