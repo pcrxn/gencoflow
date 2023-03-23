@@ -45,13 +45,12 @@ option_list <- list(
               Default: %default")
 )
 
-parser = parse_args(OptionParser(option_list = option_list))
+# parser = parse_args(OptionParser(option_list = option_list))
 
 # TESTING
-# parser = parse_args(OptionParser(option_list=option_list),
-#            args = c("--input=/home/brownli/Desktop/gencoflow/example/gene-windows.tsv",
-#                     "--outdir=/home/brownli/Desktop/gencoflow/outdir/",
-#                     "--pile"))
+parser = parse_args(OptionParser(option_list=option_list),
+           args = c("--input=/home/brownli/Desktop/gencoflow/example/multi-sample/gene-windows.tsv",
+                    "--outdir=/home/brownli/Desktop/gencoflow/example/multi-sample/"))
 
 if (!is.null(parser$input)) {
   input_tsv <- parser$input
@@ -76,6 +75,82 @@ windows = read_tsv(input_tsv) %>%
 #-------------------------------------------------------------------------------
 # Create figures
 #-------------------------------------------------------------------------------
+
+##################
+# Store ggplot objects in a dataframe
+test = windows %>% 
+  group_nest(sample_id) %>%
+  # Used for determining height of the resulting figure
+  mutate(num_windows = map(data, .f = \(x){
+    x %>% 
+      select(seq_id) %>% 
+      unique() %>% 
+      nrow()
+  })) %>% 
+  mutate(gg = map(data, .f = \(x){
+    gggenomes(seqs = x %>%
+                group_by(seq_id) %>% 
+                mutate(length = max(end) - min(start)) %>% 
+                select(seq_id, contig_id, length) %>% 
+                unique(), 
+              genes = x %>%
+                filter(source == 'prokka'), 
+              feats = x %>% 
+                filter(source == 'target')) +
+      geom_seq() +
+      geom_seq_label(aes(label = paste0(seq_id, "_", contig_id)), vjust = -10) +
+      geom_gene(fill = 'grey80', position = position_strandpile(offset = 0.1)) +
+      geom_gene_note(aes(label = gene), position = position_strandpile(offset = 0.1), vjust = 0, hjust = -0.3, size = 1.75) +
+      geom_feat(linewidth = 1, colour = 'dodgerblue', position = position_strandpile(offset = 0.2)) +
+      geom_feat_note(aes(label = target_name), position = position_strandpile(offset = 0.2))
+  }))
+
+# # Plot ggplot plots
+# test$gg
+
+for (i in 1:length(unique(test$sample_id))) {
+  test$gg[i] 
+  ggsave(filename = paste0(file.path(output_dir), test$sample_id[i], '.pdf'),
+         height = as.integer(test$num_windows[i]) * 1.3,
+         width = 12,
+         limitsize = FALSE)
+}
+
+
+
+###############
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # Used for determining height of the resulting figure
 num_windows = windows %>%
