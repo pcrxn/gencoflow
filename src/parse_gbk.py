@@ -3,7 +3,7 @@
 """
 parse_gbk.py
 
-Parse one or many Prokka-outputted GenBank files of genomic features into a TSV
+Parse one or more Prokka-outputted GenBank files of genomic features into a TSV
 file containing only ORF annotations for downstream use in GenCoFlow.
 
 Dependencies: python=3.11.0, biopython=1.80, pandas=1.5.2
@@ -28,12 +28,13 @@ from Bio import SeqIO
 def parse_arguments():
     """
     Parse command-line arguments.
-    :returns args: List of parsed arguments.
+    
+    :return list args: List of parsed arguments.
     """
 
     parser = argparse.ArgumentParser(
         description = """
-        Parse one or many Prokka-outputted GenBank files of genomic features
+        Parse one or more Prokka-outputted GenBank files of genomic features
         into a TSV file containing only ORF annotations for downstream use in
         GenCoFlow.       
         """)
@@ -42,7 +43,8 @@ def parse_arguments():
     required_args = parser.add_argument_group('Required')
     required_args.add_argument('-o', '--output', type = str, required = True,
         help = """
-        Path for a new TSV file.
+        Path for exporting data as a new TSV file.
+        Example: 'path/new.tsv'
         """)
     
     # Either arguments
@@ -50,11 +52,13 @@ def parse_arguments():
     either_args.add_argument('-i', '--input', type = str,
         help = """
         Path to a GenBank file to parse (single-sample mode).
+        Example: 'path/prokka_annots.gbk'
         """)
     either_args.add_argument('-d', '--dir', type = str,
         help = """
         Path to a directory to recursively search within for GenBank files
         (multi-sample mode).
+        Example: 'path/to/gbks/'
         """)
 
 
@@ -74,6 +78,12 @@ def determine_run_mode(input, dir):
     """
     Determine whether GenCoFlow should be run in single-sample or multi-sample
     mode.
+    
+    :param str input: Path to a GenBank file to parse (single-sample mode).
+    :param str dir: Path to a directory to recursively search within for GenBank
+    files (multi-sample mode).
+    :return str run_mode: Either 'single' for single-sample mode or 'multi' for
+    multi-sample mode.
     """
     run_mode = None
 
@@ -88,6 +98,13 @@ def obtain_genbank_files(run_mode, input, dir):
     """
     Store the path(s) of the GenBank file(s) provided on the command-line to
     --input or --dir in a list.
+
+    :param str run_mode: Either 'single' for single-sample mode or 'multi' for
+    multi-sample mode.
+    :param str input: Path to a GenBank file to parse (single-sample mode).
+    :param str dir: Path to a directory to recursively search within for GenBank
+    files (multi-sample mode).
+    :return list genbank_files: Paths to Genbank file(s) to read.
     """
 
     genbank_files = []
@@ -101,8 +118,14 @@ def obtain_genbank_files(run_mode, input, dir):
 
 def parse_gbk(genbank_files):
     """
-
+    Read the Genbank file(s) and parse coding sequence information (CDS/ORFs)
+    into a list of dictionaries.
+    
+    :param list genbank_files: Paths to Genbank file(s) to read.
+    :return list orfs: List of dictionaries, where each key in the dictionary
+    will be a column header in the exported table later.
     """
+
 
     orfs = []
     for file in genbank_files:
@@ -123,15 +146,23 @@ def parse_gbk(genbank_files):
                     orf_dict['end'] = int(feature.location.end)
                     orf_dict['strand'] = feature.strand
                     # orf_dict['id'] = feature.id
-                    orf_dict['orf_id'] = feature.qualifiers.get('locus_tag', 'NA')
-                    orf_dict['inference'] = feature.qualifiers.get('inference', 'NA')
-                    orf_dict['codon_start'] = int(feature.qualifiers.get('codon_start', 'NA')[0])
-                    orf_dict['transl_table'] = int(feature.qualifiers.get('transl_table', 'NA')[0])
-                    orf_dict['product'] = feature.qualifiers.get('product', 'NA')
-                    orf_dict['translation'] = feature.qualifiers.get('translation', 'NA')
-                    orf_dict['db_xref'] = feature.qualifiers.get('db_xref', 'NA')
+                    orf_dict['orf_id'] = feature.qualifiers.get(
+                        'locus_tag', 'NA')
+                    orf_dict['inference'] = feature.qualifiers.get(
+                        'inference', 'NA')
+                    orf_dict['codon_start'] = int(feature.qualifiers.get(
+                        'codon_start', 'NA')[0])
+                    orf_dict['transl_table'] = int(feature.qualifiers.get(
+                        'transl_table', 'NA')[0])
+                    orf_dict['product'] = feature.qualifiers.get(
+                        'product', 'NA')
+                    orf_dict['translation'] = feature.qualifiers.get(
+                        'translation', 'NA')
+                    orf_dict['db_xref'] = feature.qualifiers.get(
+                        'db_xref', 'NA')
                     orf_dict['gene'] = feature.qualifiers.get('gene', 'NA')
-                    orf_dict['ec_num'] = feature.qualifiers.get('EC_number', 'NA')
+                    orf_dict['ec_num'] = feature.qualifiers.get(
+                        'EC_number', 'NA')
                     orf_dict['note'] = feature.qualifiers.get('note', 'NA')
                     # If any of the values in orf_dict are lists of length 1, 
                     # unlist:
@@ -143,18 +174,15 @@ def parse_gbk(genbank_files):
 
     return orfs
 
-def orfs_to_df(orfs):
-    """
+def export_tsv(orfs, output):
+    """_summary_
 
+    :param list orfs: List of dictionaries, where each key in the dictionary
+    will be a column header in the exported table.
+    :param str output: Path for exporting data as a new TSV file.
     """
 
     df = pd.DataFrame(orfs)
-    return df
-
-def export_tsv(df, output):
-    """
-
-    """
     df.to_csv(output, sep = '\t', na_rep = 'NA', index = False)
 
 #-------------------------------------------------------------------------------
@@ -166,8 +194,7 @@ def main(args):
     genbank_files = obtain_genbank_files(run_mode, input = args.input,
                                          dir = args.dir)
     orfs = parse_gbk(genbank_files)
-    df = orfs_to_df(orfs)
-    export_tsv(df, output = args.output)
+    export_tsv(orfs, output = args.output)
 
 #-------------------------------------------------------------------------------
 
