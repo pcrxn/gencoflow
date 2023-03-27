@@ -57,7 +57,8 @@ def parse_arguments():
     either_args.add_argument('-d', '--dir', type = str,
         help = """
         Path to a directory to recursively search within for GenBank files
-        (multi-sample mode).
+        (multi-sample mode). The base file name of each GenBank file will become
+        the sample_id.
         Example: 'path/to/gbks/'
         """)
 
