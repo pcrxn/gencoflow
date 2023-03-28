@@ -170,11 +170,11 @@ def read_target_annot(run_mode, target_annot_file, sample_id_name,
     :return DataFrame target_df: Target annotation data.
     """
 
-    print(f"Reading target annotations in {target_annot_file}...")
+    print(f"Reading target annotations in '{target_annot_file}'...")
 
     target_df = pd.read_csv(target_annot_file, sep = '\t', index_col = False)
 
-    print(f"{len(target_df.index)} targets detected in {target_annot_file}.")
+    print(f"{len(target_df.index)} targets detected.")
 
     if run_mode == 'single':
         target_df.rename(columns = {contig_id_name: 'contig_id',
@@ -215,7 +215,7 @@ def read_prokka(parsed_gbk_file):
     :return DataFrame prokka_df: Prokka ORF annotation data.
     """
 
-    print(f"Reading Prokka annotations in {parsed_gbk_file}...")
+    print(f"Reading Prokka annotations in '{parsed_gbk_file}'...")
 
     prokka_df = pd.read_csv(parsed_gbk_file, sep = '\t', index_col = False)
     # Add prefixes to some column names to avoid conflicts with merge_dfs()
@@ -234,7 +234,7 @@ def read_prokka(parsed_gbk_file):
     prokka_df['source'] = 'prokka'
 
     print(len(prokka_df.index))
-    print(f"len(prokka_df.index) ORFs detected in {parsed_gbk_file}.")
+    print(f"{len(prokka_df.index)} ORFs detected.")
 
     return prokka_df
 
