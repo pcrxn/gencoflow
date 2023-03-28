@@ -120,11 +120,23 @@ for (i in 1:length(unique(windows$sample_id))) {
              height = 2,
              width = 12,
              limitsize = FALSE)
+      ggsave(paste0(file.path(output_dir), unique(windows$sample_id)[i], '.png'),
+             plot = gg,
+             height = 2,
+             width = 12,
+             dpi = 300,
+             limitsize = FALSE)
     } else {
       ggsave(paste0(file.path(output_dir), unique(windows$sample_id)[i], '.pdf'),
              plot = gg,
-             height = as.integer(df$num_windows[i]) * 1.3,
+             height = as.integer(num_windows[i]) * 1.3,
              width = 12,
+             limitsize = FALSE)
+      ggsave(paste0(file.path(output_dir), unique(windows$sample_id)[i], '.png'),
+             plot = gg,
+             height = as.integer(num_windows[i]) * 1.3,
+             width = 12,
+             dpi = 300,
              limitsize = FALSE)
     }
   # No --pile
@@ -139,16 +151,32 @@ for (i in 1:length(unique(windows$sample_id))) {
     
     # Save plots
     if (num_windows < 2){
+      # pdf
       ggsave(paste0(file.path(output_dir), unique(windows$sample_id)[i], '.pdf'),
              plot = gg,
              height = 2,
              width = 12,
              limitsize = FALSE)
+      # png
+      ggsave(paste0(file.path(output_dir), unique(windows$sample_id)[i], '.png'),
+             plot = gg,
+             height = 2,
+             width = 12,
+             dpi = 300,
+             limitsize = FALSE)
     } else {
+      # pdf
       ggsave(paste0(file.path(output_dir), unique(windows$sample_id)[i], '.pdf'),
              plot = gg,
-             height = as.integer(df$num_windows[i]) * 0.8,
+             height = as.integer(num_windows) * 0.8,
              width = 12,
+             limitsize = FALSE)
+      # png
+      ggsave(paste0(file.path(output_dir), unique(windows$sample_id)[i], '.png'),
+             plot = gg,
+             height = as.integer(num_windows) * 0.8,
+             width = 12,
+             dpi = 300,
              limitsize = FALSE)
     }
   }
