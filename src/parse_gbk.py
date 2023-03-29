@@ -41,9 +41,9 @@ def parse_arguments():
 
     # Required arguments
     required_args = parser.add_argument_group('Required')
-    required_args.add_argument('-o', '--output', type = str, required = True,
+    required_args.add_argument('-r', '--report', type = str, required = True,
         help = """
-        Path for exporting data as a new TSV file.
+        Path for exporting data as a new TSV report.
         Example: 'path/new.tsv'
         """)
     
@@ -175,7 +175,7 @@ def parse_gbk(genbank_files):
 
     return orfs
 
-def export_tsv(orfs, output):
+def export_tsv(orfs, report):
     """_summary_
 
     :param list orfs: List of dictionaries, where each key in the dictionary
@@ -184,7 +184,7 @@ def export_tsv(orfs, output):
     """
 
     df = pd.DataFrame(orfs)
-    df.to_csv(output, sep = '\t', na_rep = 'NA', index = False)
+    df.to_csv(report, sep = '\t', na_rep = 'NA', index = False)
 
 #-------------------------------------------------------------------------------
 # main()
@@ -195,7 +195,7 @@ def main(args):
     genbank_files = obtain_genbank_files(run_mode, input = args.input,
                                          dir = args.dir)
     orfs = parse_gbk(genbank_files)
-    export_tsv(orfs, output = args.output)
+    export_tsv(orfs, report = args.report)
 
 #-------------------------------------------------------------------------------
 
