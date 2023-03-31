@@ -21,6 +21,8 @@ import pandas as pd
 from pathlib import Path
 from Bio import SeqIO
 
+from src.version import __version__
+
 #-------------------------------------------------------------------------------
 # parse_arguments()
 #-------------------------------------------------------------------------------
@@ -61,6 +63,14 @@ def parse_arguments():
         the sample_id.
         Example: 'path/to/gbks/'
         """)
+
+    # Optional arguments
+    optional_args = parser.add_argument_group('Optional')
+    optional_args.add_argument(
+        '-version', '--version',
+        action='version',
+        version=f'%(prog)s commit {__version__}'
+        )
 
 
     # If no arguments provided:
