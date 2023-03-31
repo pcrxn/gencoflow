@@ -2,3 +2,14 @@ example/prokka_SAMN02147037/PROKKA_03132023.gbk.tsv
 .Rproj.user
 .Rhistory
 env/
+.coverage
+GenCoFlow.egg-info/
+src/__pycache__/
+tests/__pycache__/
+tests/example/multi-sample/*.pdf
+tests/example/single-sample/*.gbk.tsv
+tests/example/single-sample/gene-windows.tsv
+tests/example/multi-sample/*.gbk.tsv
+tests/example/multi-sample/gene-windows.tsv
+
+
