@@ -26,8 +26,10 @@ import os
 import sys
 import logging
 import argparse
+from pathlib import Path
 from subprocess import call
 
+from src.version import __version__
 from parse_gbk import main as parse_gbk_main
 from create_windows import main as create_windows_main
 
@@ -48,13 +50,10 @@ def parse_arguments():
     # Required arguments
     required_args = parser.add_argument_group('Required')
     # Parse GBK file
-    required_args.add_argument('-i', '--input', type = str, required = True,
-        help = """
-        Path to a GenBank file to parse.
-        """)
     required_args.add_argument('-r', '--report_file', type = str, required = True,
         help = """
-        Path for a new TSV file.
+        Path for exporting data as a new TSV report.
+        Example: 'path/new.tsv'
         """)
     # Create windows
     required_args.add_argument('-p', '--prokka', type = str, required = True,
@@ -78,6 +77,21 @@ def parse_arguments():
         Name of a column -t/--targets file to use for annotation of the targets.
         """)    
     
+    # Either arguments
+    either_args = parser.add_mutually_exclusive_group(required = True)
+    either_args.add_argument('-i', '--input', type = str,
+        help = """
+        Path to a GenBank file to parse (single-sample mode).
+        Example: 'path/prokka_annots.gbk'
+        """)
+    either_args.add_argument('-d', '--dir', type = str,
+        help = """
+        Path to a directory to recursively search within for GenBank files
+        (multi-sample mode). The base file name of each GenBank file will become
+        the sample_id.
+        Example: 'path/to/gbks/'
+        """)
+
     # Optional arguments
     optional_args = parser.add_argument_group('Optional')
     optional_args.add_argument('-s', '--sample_id', type = str, 
@@ -135,6 +149,11 @@ def parse_arguments():
         Default: 'info'
         """
     )
+    optional_args.add_argument(
+        '-version', '--version',
+        action='version',
+        version=f'%(prog)s commit {__version__}'
+        )
     
     
     # Vis windows
@@ -185,25 +204,42 @@ def parse_gbk_check(args):
     # List to store all the errors encountered
     errors = []
     # Input
-    if not os.path.isfile(args.input):
-        errors.append(
-                f'Could not locate the supplied GBK file, {args.input}. Please ensure that it '
-                'exists.'
+    if args.input:
+        if not os.path.isfile(args.input):
+            errors.append(
+                    f'Could not locate the supplied GBK file, {args.input}. '
+                    'Please ensure that it exists.'
+                )
+    elif args.dir:
+        if not os.path.isdir(args.dir):
+            errors.append(
+                f'Could not locate the supplied directory of GBK files, '
+                f'{args.dir}. Please ensure that it exists.'
             )
-    report_path = os.path.basename(args.report_file)
+        else:
+            gbk_files = []
+            for path in Path(args.dir).rglob('*.gbk'):
+                gbk_files.append(path)
+            if not gbk_files:
+                errors.append(
+                    f'Could not locate any GBK files in the supplied directory, '
+                    f'{args.dir}. Please ensure that you have supplied the right folder name.'
+                )
+    # Report file
+    report_path = os.path.basename(args.report)
     if not os.path.isdir(report_path):
         try:
             os.makedirs(report_path)
             logging.warning(
-                'Directory for supplied report file, %s did not exist. It has been created for '
-                'you.', args.report_file
+                'Directory for supplied report file, %s did not exist. It has '
+                'been created for you.', args.report
                 )
         except IOError as exc:
             errors.append(
                 f'Could not create the necessary folder into which the report is to be written: ' 
                 f' {report_path}. Please ensure that you have the necessary permissions.\n'
-                f'Error: {exc}'
             )
+            logging.debug(exc)
     if errors:
         error_writing(errors)
 
