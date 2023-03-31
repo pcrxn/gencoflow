@@ -20,6 +20,8 @@ import argparse
 import pandas as pd
 import numpy as np
 
+from src.version import __version__
+
 #-------------------------------------------------------------------------------
 # parse_arguments()
 #-------------------------------------------------------------------------------
@@ -106,6 +108,11 @@ def parse_arguments():
         annotation to include for analysis.
         Default: 3000
         """)
+    optional_args.add_argument(
+        '-version', '--version',
+        action='version',
+        version=f'%(prog)s commit {__version__}'
+        )
 
 
     # If no arguments provided:
